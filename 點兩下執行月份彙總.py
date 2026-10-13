@@ -21,11 +21,17 @@
   python3 點兩下執行月份彙總.py 113                  # 只處理指定年份（民國或西元皆可，可多個）
   python3 點兩下執行月份彙總.py --base /其他/目錄     # 年份資料夾放在別的地方
   python3 點兩下執行月份彙總.py --keep-month-suffix  # 不合併「勞保費-1月」「勞保費-2月」這類名稱
+  python3 點兩下執行月份彙總.py --no-pause           # Windows 結束時不要等按鍵（給排程或自動化用）
+
+在 Windows 點兩下執行時，程式結束（含出錯）會停在「按任意鍵關閉視窗」，
+讓你看得到訊息；加 --no-pause 可以關掉這個行為。
 """
 import argparse
 import datetime as dt
 import re
 import subprocess
+import sys
+import traceback
 from pathlib import Path
 from collections import OrderedDict, defaultdict
 
@@ -411,7 +417,11 @@ def main():
                     help="保留產品名稱裡的月份字樣（預設會把「勞保費-1月」合併成「勞保費」）")
     ap.add_argument("--no-pull", action="store_true", help="執行前不要先 git pull")
     ap.add_argument("--push", action="store_true", help="產出後自動 commit 並 push 月份彙總.xlsx")
+    ap.add_argument("--no-pause", action="store_true",
+                    help="Windows 結束時不要等按鍵就關閉視窗（預設點兩下執行會停住）")
     args = ap.parse_args()
+    global PAUSE_ON_EXIT
+    PAUSE_ON_EXIT = not args.no_pause
 
     script_dir = Path(__file__).resolve().parent
     base = Path(args.base) if args.base else script_dir
@@ -436,5 +446,46 @@ def main():
         git_push(script_dir, outputs, f"Update monthly rollup ({dt.date.today():%Y-%m-%d})")
 
 
+PAUSE_ON_EXIT = True  # main() 解析參數後可能改成 False（--no-pause）
+
+
+def wait_before_close():
+    """Windows 點兩下執行時，視窗會在程式結束後立刻關閉，看不到訊息。
+    這裡停下來等使用者按任意鍵再結束；非 Windows、輸出被重導向或加 --no-pause 時不等。"""
+    if not PAUSE_ON_EXIT or sys.platform != "win32":
+        return
+    try:
+        if not sys.stdin.isatty():
+            return
+    except (AttributeError, ValueError):
+        return
+    print("\n按任意鍵關閉視窗...", end="", flush=True)
+    try:
+        import msvcrt
+        msvcrt.getch()
+    except Exception:
+        try:
+            input()
+        except EOFError:
+            pass
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        # argparse 的 --help / 參數錯誤，或程式自己的 raise SystemExit("訊息")
+        if e.code not in (None, 0):
+            if isinstance(e.code, str):
+                print("✘ " + e.code)
+            wait_before_close()
+        raise
+    except KeyboardInterrupt:
+        print("\n已中斷。")
+        raise
+    except Exception:
+        print("✘ 程式發生錯誤：")
+        traceback.print_exc()
+        wait_before_close()
+        raise SystemExit(1)
+    wait_before_close()

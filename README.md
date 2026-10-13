@@ -24,7 +24,10 @@ python3 點兩下執行月份彙總.py            # 執行前自動 git pull，�
 python3 點兩下執行月份彙總.py 113        # 只處理指定年份（民國或西元皆可）
 python3 點兩下執行月份彙總.py --push     # 產出後自動 commit + push
 python3 點兩下執行月份彙總.py --no-pull  # 不要先 git pull
+python3 點兩下執行月份彙總.py --no-pause # Windows 結束時不等按鍵（排程/自動化用）
 ```
+
+Windows 直接點兩下執行時，程式結束（含出錯）會停在「按任意鍵關閉視窗」，方便看訊息；加 `--no-pause` 可關掉。
 
 需要 Python 3 與 `openpyxl`：`pip3 install openpyxl`
 
