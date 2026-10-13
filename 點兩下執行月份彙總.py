@@ -39,6 +39,14 @@ HEADER_NAME = "商品名稱"
 HEADER_QTY = "數量"
 HEADER_AMT = "金額"
 
+# 輸出時排在最前面的產品（依此順序）；其餘產品依在來源檔中首次出現的順序排在後面
+PRIORITY_PRODUCTS = [
+    "92汽油", "92折讓",
+    "95汽油", "95折讓",
+    "柴油", "柴油折讓", "柴油折讓-大宗",
+    "尿素", "尿素折讓",
+]
+
 
 # ----------------------------------------------------------------------
 # 讀取
@@ -150,7 +158,14 @@ def read_expenses(path, year_filter=None, strip_month=True):
 
     if skipped:
         print(f"⚠ 有 {len(skipped)} 列找不到日期，已略過：", skipped[:5], "...")
-    return data, list(products.keys())
+    return data, order_products(list(products.keys()))
+
+
+def order_products(products):
+    """PRIORITY_PRODUCTS 裡有的排最前面（依清單順序），其餘維持首次出現順序。"""
+    first = [n for n in PRIORITY_PRODUCTS if n in products]
+    rest = [n for n in products if n not in PRIORITY_PRODUCTS]
+    return first + rest
 
 
 # ----------------------------------------------------------------------
